@@ -99,18 +99,33 @@ export default class MusicSettingsMenu {
   insertButton() {
     // The player bar at the bottom of the window. In small windows a
     // different player bar (#top-player-bar) is shown in the player page
-    const buttonsElem = this.appElem.querySelector(
-      [
-        'ytmusic-player-bar:not(#top-player-bar) .right-controls-buttons',
-        'ytmusic-player-bar:not(#top-player-bar) .right-controls',
-      ].join(', ')
-    );
-    if (!buttonsElem) return;
+    const playerBarSelector = 'ytmusic-player-bar:not(#top-player-bar)';
 
-    const expandButtonElem = buttonsElem.querySelector(
-      ':scope > .expand-button'
+    // The layout of the player bar differs between versions of YouTube
+    // Music, so try to find the right controls from specific to generic
+    const buttonsElem = this.appElem.querySelector(
+      `${playerBarSelector} .right-controls-buttons`
     );
-    buttonsElem.insertBefore(this.buttonElem, expandButtonElem);
+    if (buttonsElem) {
+      const expandButtonElem = buttonsElem.querySelector(
+        ':scope > .expand-button'
+      );
+      buttonsElem.insertBefore(this.buttonElem, expandButtonElem);
+      return;
+    }
+
+    const volumeElem = this.appElem.querySelector(
+      `${playerBarSelector} .volume`
+    );
+    if (volumeElem?.parentElement) {
+      volumeElem.parentElement.insertBefore(this.buttonElem, volumeElem);
+      return;
+    }
+
+    const rightControlsElem = this.appElem.querySelector(
+      `${playerBarSelector} .right-controls`
+    );
+    rightControlsElem?.appendChild(this.buttonElem);
   }
 
   initMenu() {
