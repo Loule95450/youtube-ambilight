@@ -114,6 +114,18 @@ export default class MusicSettingsMenu {
       return;
     }
 
+    // The redesigned player bar (ytmusic-miniplayer)
+    const rightSectionElem = this.appElem.querySelector(
+      'ytmusic-miniplayer .ytMusicMiniPlayerRightSection'
+    );
+    if (rightSectionElem) {
+      const volumeWrapperElem = rightSectionElem.querySelector(
+        ':scope > .ytMusicMiniPlayerVolumeWrapper'
+      );
+      rightSectionElem.insertBefore(this.buttonElem, volumeWrapperElem);
+      return;
+    }
+
     const volumeElem = this.appElem.querySelector(
       `${playerBarSelector} .volume`
     );
@@ -298,7 +310,8 @@ export default class MusicSettingsMenu {
 
     const buttonRect = this.buttonElem.getBoundingClientRect();
     const barRect = (
-      this.buttonElem.closest('ytmusic-player-bar') ?? this.buttonElem
+      this.buttonElem.closest('ytmusic-player-bar, ytmusic-miniplayer') ??
+      this.buttonElem
     ).getBoundingClientRect();
     const menuWidth = this.menuElem.offsetWidth;
     const left = Math.max(

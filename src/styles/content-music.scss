@@ -44,7 +44,8 @@ body:has(> .ytal-music--active) {
   }
 
   // Keep the controls in the player bar readable
-  #player-bar-background {
+  #player-bar-background,
+  ytmusic-miniplayer.ytMusicMiniPlayerHost {
     background: rgba(3, 3, 3, 0.5) !important;
   }
 }
