@@ -1,8 +1,5 @@
-import { on, off, setTimeout, wrapErrorHandler } from './generic';
-import { storage } from './storage';
+import { on, off, wrapErrorHandler } from './generic';
 import SettingsConfig from './settings-config';
-
-const SAVE_DELAY = 300;
 
 // A selection of the shared YouTube player settings that are relevant on
 // YouTube Music
@@ -51,14 +48,13 @@ const createIcon = () => {
 };
 
 // A settings menu for the ambient light in the player bar of YouTube Music.
-// The settings are stored with the same keys as the settings of the YouTube
-// player, so they are shared between youtube.com and music.youtube.com
+// By default the settings are synced with the settings of the YouTube player
 export default class MusicSettingsMenu {
   isOpen = false;
-  saveTimeouts = {};
 
-  constructor(ambientlight, appElem) {
+  constructor(ambientlight, settings, appElem) {
     this.ambientlight = ambientlight;
+    this.settings = settings;
     this.appElem = appElem;
 
     this.initButton();
@@ -150,13 +146,8 @@ export default class MusicSettingsMenu {
     headerElem.appendChild(
       createElem('div', 'ytal-music-menu__title', 'Ambient light')
     );
-    headerElem.appendChild(
-      createElem(
-        'div',
-        'ytal-music-menu__subtitle',
-        'Shared with the settings on youtube.com'
-      )
-    );
+    this.subtitleElem = createElem('div', 'ytal-music-menu__subtitle');
+    headerElem.appendChild(this.subtitleElem);
     this.menuElem.appendChild(headerElem);
 
     this.inputs = {};
@@ -169,6 +160,18 @@ export default class MusicSettingsMenu {
           ? this.createCheckbox(setting)
           : this.createRange(setting)
       );
+
+      if (name === 'enabled') {
+        this.menuElem.appendChild(
+          this.createCheckbox(
+            {
+              name: 'syncWithYouTube',
+              label: 'Sync with YouTube',
+            },
+            (sync) => this.setSyncWithYouTube(sync)
+          )
+        );
+      }
     }
 
     // Prevent the clicks from reaching the player bar, which would open the
@@ -193,7 +196,7 @@ export default class MusicSettingsMenu {
     document.body.appendChild(this.menuElem);
   }
 
-  createCheckbox(setting) {
+  createCheckbox(setting, onChange = (value) => this.set(setting.name, value)) {
     const id = `ytal-music-setting-${setting.name}`;
     const elem = createElem('label', 'ytal-music-menu__item');
     elem.htmlFor = id;
@@ -206,7 +209,7 @@ export default class MusicSettingsMenu {
     input.type = 'checkbox';
     input.id = id;
     input.setAttribute('role', 'switch');
-    on(input, 'change', () => this.set(setting.name, input.checked));
+    on(input, 'change', () => onChange(input.checked));
     elem.appendChild(input);
 
     this.inputs[setting.name] = { input };
@@ -263,24 +266,24 @@ export default class MusicSettingsMenu {
   }
 
   set(name, value) {
+    this.settings.set(name, value);
     this.ambientlight.updateSettings({ [name]: value });
     this.update();
-    this.scheduleSave(name, value);
   }
 
-  scheduleSave(name, value) {
-    clearTimeout(this.saveTimeouts[name]);
-    this.saveTimeouts[name] = setTimeout(async () => {
-      delete this.saveTimeouts[name];
-      // Store the default value as undefined, just like the YouTube player
-      // settings do, so that a future change of the default is applied
-      const isDefault = getSettingConfig(name)?.default === value;
-      await storage.set(`setting-${name}`, isDefault ? undefined : value);
-    }, SAVE_DELAY);
+  setSyncWithYouTube(sync) {
+    this.settings.setSyncWithYouTube(sync);
+    this.ambientlight.updateSettings(this.settings.values);
+    this.update();
   }
 
   update() {
     const { settings } = this.ambientlight;
+    const { syncWithYouTube } = this.settings;
+
+    this.subtitleElem.textContent = syncWithYouTube
+      ? 'Synced with the settings on youtube.com'
+      : 'Only applied on YouTube Music';
 
     this.buttonElem.classList.toggle(
       'ytal-music-button--enabled',
@@ -288,7 +291,7 @@ export default class MusicSettingsMenu {
     );
 
     for (const [name, { input, valueElem }] of Object.entries(this.inputs)) {
-      const value = settings[name];
+      const value = name === 'syncWithYouTube' ? syncWithYouTube : settings[name];
       if (input.type === 'checkbox') {
         input.checked = !!value;
       } else {

@@ -1,19 +1,7 @@
 import { wrapErrorHandler } from './libs/generic';
-import { storage } from './libs/storage';
+import MusicSettings from './libs/music-settings';
 import MusicSettingsMenu from './libs/music-settings-menu';
-import MusicAmbientlight, {
-  getDefaultMusicSettings,
-  musicSettingNames,
-} from './libs/music-ambientlight';
-
-const storageNames = musicSettingNames.map((name) => `setting-${name}`);
-
-const parseStoredSettings = (stored) =>
-  Object.fromEntries(
-    Object.entries(stored)
-      .filter(([, value]) => value !== undefined && value !== null)
-      .map(([key, value]) => [key.replace(/^setting-/, ''), value])
-  );
+import MusicAmbientlight from './libs/music-ambientlight';
 
 const findPlayerElems = () => {
   const playerPageElem = document.querySelector('ytmusic-app ytmusic-player-page');
@@ -50,34 +38,23 @@ wrapErrorHandler(async function loadMusicAmbientlight() {
   if (window.musicAmbientlight !== undefined) return;
   window.musicAmbientlight = false;
 
-  const settings = {
-    ...getDefaultMusicSettings(),
-    ...parseStoredSettings((await storage.get(storageNames)) || {}),
-  };
+  // Apply the changes made in the YouTube player settings or in other tabs
+  let musicAmbientlight;
+  let settingsMenu;
+  const settings = new MusicSettings((values) => {
+    if (!musicAmbientlight) return;
 
-  const { appElem, playerPageElem, playerElem } = await waitForPlayerElems();
-  const musicAmbientlight = new MusicAmbientlight(
-    playerPageElem,
-    playerElem,
-    settings
-  );
-  window.musicAmbientlight = musicAmbientlight;
-  const settingsMenu = new MusicSettingsMenu(musicAmbientlight, appElem);
-
-  // Apply the changes made in the YouTube player settings
-  storage.addListener(function musicSettingsListener(changes) {
-    const changedNames = storageNames.filter((name) => name in changes);
-    if (!changedNames.length) return;
-
-    const defaults = getDefaultMusicSettings();
-    const changedSettings = Object.fromEntries(
-      changedNames.map((storageName) => {
-        const name = storageName.replace(/^setting-/, '');
-        const value = changes[storageName].newValue;
-        return [name, value ?? defaults[name]];
-      })
-    );
-    musicAmbientlight.updateSettings(changedSettings);
+    musicAmbientlight.updateSettings(values);
     settingsMenu.update();
   });
+  await settings.load();
+
+  const { appElem, playerPageElem, playerElem } = await waitForPlayerElems();
+  musicAmbientlight = new MusicAmbientlight(
+    playerPageElem,
+    playerElem,
+    settings.values
+  );
+  window.musicAmbientlight = musicAmbientlight;
+  settingsMenu = new MusicSettingsMenu(musicAmbientlight, settings, appElem);
 })();
