@@ -34,10 +34,24 @@ body:has(> .ytal-music--active) {
     background: transparent !important;
   }
 
+  // Show the ambient light in place of the black bars that are clipped off
+  // the video
+  ytmusic-player[video-mode],
+  ytmusic-player[video-mode] #song-video,
+  ytmusic-player[video-mode] .html5-video-player,
+  ytmusic-player[video-mode] .html5-video-container {
+    background: transparent !important;
+  }
+
   // Keep the controls in the player bar readable
   #player-bar-background {
     background: rgba(3, 3, 3, 0.5) !important;
   }
+}
+
+.ytal-music-video-clip {
+  clip-path: var(--ytal-music-video-clip, inset(0% 0%));
+  transition: clip-path 0.3s ease;
 }
 
 .ytal-music__glow {

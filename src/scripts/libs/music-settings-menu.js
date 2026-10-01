@@ -1,9 +1,23 @@
 import { on, off, setTimeout, wrapErrorHandler } from './generic';
 import { storage } from './storage';
 import SettingsConfig from './settings-config';
-import { musicSettingNames } from './music-ambientlight';
 
 const SAVE_DELAY = 300;
+
+// A selection of the shared YouTube player settings that are relevant on
+// YouTube Music
+const menuSettingNames = [
+  'enabled',
+  'spread',
+  'blur2',
+  'brightness',
+  'contrast',
+  'saturation',
+  'frameBlending',
+  'frameBlendingSmoothness',
+  'detectHorizontalBarSizeEnabled',
+  'detectVerticalBarSizeEnabled',
+];
 
 const getSettingConfig = (name) =>
   SettingsConfig.find((setting) => setting.name === name);
@@ -113,7 +127,7 @@ export default class MusicSettingsMenu {
     this.menuElem.appendChild(headerElem);
 
     this.inputs = {};
-    for (const name of musicSettingNames) {
+    for (const name of menuSettingNames) {
       const setting = getSettingConfig(name);
       if (!setting) continue;
 
@@ -207,6 +221,11 @@ export default class MusicSettingsMenu {
     if (setting.name === 'frameBlending') return 'Smooth motion';
     if (setting.name === 'frameBlendingSmoothness')
       return 'Smooth motion strength';
+    // Bars are only detected in music videos
+    if (setting.name === 'detectHorizontalBarSizeEnabled')
+      return 'Remove black bars in videos';
+    if (setting.name === 'detectVerticalBarSizeEnabled')
+      return 'Remove black sidebars in videos';
     return setting.label;
   }
 

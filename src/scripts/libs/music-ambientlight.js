@@ -1,5 +1,6 @@
 import { on, off, raf, wrapErrorHandler } from './generic';
 import SettingsConfig from './settings-config';
+import BarDetection from './bar-detection';
 
 // Resolution of the buffer the ambient light is rendered from.
 // It is blurred heavily afterwards, so a few pixels are more than enough.
@@ -22,7 +23,27 @@ export const musicSettingNames = [
   'saturation',
   'frameBlending',
   'frameBlendingSmoothness',
+  'detectHorizontalBarSizeEnabled',
+  'detectVerticalBarSizeEnabled',
+  'detectColoredHorizontalBarSizeEnabled',
+  'detectHorizontalBarSizeOffsetPercentage',
 ];
+
+const barDetectionSettingNames = [
+  'detectHorizontalBarSizeEnabled',
+  'detectVerticalBarSizeEnabled',
+  'detectColoredHorizontalBarSizeEnabled',
+  'detectHorizontalBarSizeOffsetPercentage',
+];
+
+// The bar detection reports its results to the stats of the YouTube player,
+// which are not available on YouTube Music
+const noopStats = {
+  updateBarDetectionImage: () => {},
+  updateBarDetectionResult: async () => {},
+  addBarDetectionDuration: () => {},
+  updateBarDetectionInfo: () => {},
+};
 
 export const getDefaultMusicSettings = () =>
   Object.fromEntries(
@@ -41,10 +62,14 @@ export default class MusicAmbientlight {
   transitionFramesLeft = 0;
   scheduledFrameId = undefined;
   scheduledVideoFrameId = undefined;
+  // Percentage of the video height/width per side that contains black bars
+  barsClip = { horizontal: 0, vertical: 0 };
 
   constructor(playerPageElem, playerElem, settings) {
     this.playerPageElem = playerPageElem;
     this.playerElem = playerElem;
+
+    this.barDetection = new BarDetection({ stats: noopStats });
 
     this.initElems();
     this.initListeners();
@@ -155,7 +180,16 @@ export default class MusicAmbientlight {
   }
 
   updateSettings(settings) {
+    const previousSettings = this.settings;
     this.settings = { ...getDefaultMusicSettings(), ...this.settings, ...settings };
+    if (
+      previousSettings &&
+      barDetectionSettingNames.some(
+        (name) => previousSettings[name] !== this.settings[name]
+      )
+    ) {
+      this.resetBarDetection();
+    }
     const { spread, blur2, brightness, contrast, saturation } = this.settings;
 
     // Mimics the projectors of the YouTube player: the spread is the amount
@@ -224,6 +258,7 @@ export default class MusicAmbientlight {
     this.elem.classList.remove('ytal-music--active', 'ytal-music--visible');
     this.cancelScheduledDraw();
     this.cancelScheduledVideoFrame();
+    this.updateVideoClip();
   }
 
   getSource() {
@@ -285,6 +320,17 @@ export default class MusicAmbientlight {
       width = contentWidth;
       height = contentHeight;
     }
+
+    if (source.key === 'video') {
+      // The black bars are clipped off the video, so the ambient light should
+      // start at the edges of the remaining image
+      const { horizontal, vertical } = this.barsClip;
+      left += (width * vertical) / 100;
+      top += (height * horizontal) / 100;
+      width -= ((width * vertical) / 100) * 2;
+      height -= ((height * horizontal) / 100) * 2;
+    }
+    this.updateVideoClip(source.key === 'video' ? source.elem : undefined);
 
     const style = this.glowElem.style;
     style.left = `${left}px`;
@@ -383,6 +429,7 @@ export default class MusicAmbientlight {
     }
 
     this.drawSource(source, alpha);
+    if (isPlaying) this.detectBars(source.elem);
 
     if (this.transitionFramesLeft > 0) {
       this.scheduleDraw();
@@ -400,7 +447,15 @@ export default class MusicAmbientlight {
     let sy = 0;
     let sWidth = source.width;
     let sHeight = source.height;
-    if (source.fit === 'cover') {
+    if (source.key === 'video') {
+      // Leave out the black bars, so that the ambient light continues the
+      // colors at the edges of the image instead of the black of the bars
+      const { horizontal, vertical } = this.barsClip;
+      sx = (sWidth * vertical) / 100;
+      sy = (sHeight * horizontal) / 100;
+      sWidth -= sx * 2;
+      sHeight -= sy * 2;
+    } else if (source.fit === 'cover') {
       const scale = Math.max(width / sWidth, height / sHeight);
       sWidth = width / scale;
       sHeight = height / scale;
@@ -416,8 +471,90 @@ export default class MusicAmbientlight {
     }
   }
 
+  get isBarDetectionEnabled() {
+    return (
+      this.settings.detectHorizontalBarSizeEnabled ||
+      this.settings.detectVerticalBarSizeEnabled
+    );
+  }
+
+  resetBarDetection() {
+    this.barDetection.reset();
+    this.barsClip = { horizontal: 0, vertical: 0 };
+    this.barDetectionVideoSrc = undefined;
+    this.updateLayout();
+    this.scheduleDraw();
+  }
+
+  // Clips the black bars off the video, so that the ambient light is
+  // visible in their place, just like on youtube.com
+  updateVideoClip(video) {
+    if (!this.enabled || !this.isBarDetectionEnabled) video = undefined;
+
+    if (this.clippedVideoElem && this.clippedVideoElem !== video) {
+      this.clippedVideoElem.classList.remove('ytal-music-video-clip');
+      this.clippedVideoElem.style.removeProperty('--ytal-music-video-clip');
+      this.clippedVideoElem = undefined;
+    }
+    if (!video) return;
+
+    const { horizontal, vertical } = this.barsClip;
+    video.style.setProperty(
+      '--ytal-music-video-clip',
+      `inset(${horizontal}% ${vertical}%)`
+    );
+    video.classList.add('ytal-music-video-clip');
+    this.clippedVideoElem = video;
+  }
+
+  detectBars(video) {
+    if (!this.isBarDetectionEnabled) return;
+
+    // The bars can be different in the next video
+    if (video.currentSrc !== this.barDetectionVideoSrc) {
+      this.resetBarDetection();
+      this.barDetectionVideoSrc = video.currentSrc;
+    }
+
+    const { settings } = this;
+    this.barDetection.detect(
+      video,
+      settings.detectColoredHorizontalBarSizeEnabled,
+      settings.detectHorizontalBarSizeOffsetPercentage,
+      settings.detectHorizontalBarSizeEnabled,
+      this.barsClip.horizontal,
+      settings.detectVerticalBarSizeEnabled,
+      this.barsClip.vertical,
+      video.videoHeight / video.videoWidth,
+      true,
+      1,
+      20,
+      20,
+      wrapErrorHandler(function onBarsDetected(horizontal, vertical) {
+        const barsClip = {
+          horizontal: settings.detectHorizontalBarSizeEnabled
+            ? horizontal ?? this.barsClip.horizontal
+            : 0,
+          vertical: settings.detectVerticalBarSizeEnabled
+            ? vertical ?? this.barsClip.vertical
+            : 0,
+        };
+        if (
+          barsClip.horizontal === this.barsClip.horizontal &&
+          barsClip.vertical === this.barsClip.vertical
+        )
+          return;
+
+        this.barsClip = barsClip;
+        this.updateLayout();
+        this.scheduleDraw();
+      }.bind(this))
+    );
+  }
+
   destroy() {
     this.hide();
+    this.barDetection.cancel();
     this.playerObserver.disconnect();
     this.coverObserver.disconnect();
     this.resizeObserver.disconnect();
