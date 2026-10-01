@@ -18,10 +18,12 @@ const parseStoredSettings = (stored) =>
 const findPlayerElems = () => {
   const playerPageElem = document.querySelector('ytmusic-app ytmusic-player-page');
   const playerElem = playerPageElem?.querySelector('ytmusic-player#player');
-  const playerBarElem = document.querySelector('ytmusic-app ytmusic-player-bar');
-  if (!playerElem || !playerBarElem) return;
+  if (!playerElem) return;
 
-  return { playerPageElem, playerElem, playerBarElem };
+  // The player bar is not required, because it is not available in every
+  // layout of YouTube Music. The settings menu waits for it by itself.
+  const appElem = playerPageElem.closest('ytmusic-app');
+  return { appElem, playerPageElem, playerElem };
 };
 
 const waitForPlayerElems = () =>
@@ -53,15 +55,14 @@ wrapErrorHandler(async function loadMusicAmbientlight() {
     ...parseStoredSettings((await storage.get(storageNames)) || {}),
   };
 
-  const { playerPageElem, playerElem, playerBarElem } =
-    await waitForPlayerElems();
+  const { appElem, playerPageElem, playerElem } = await waitForPlayerElems();
   const musicAmbientlight = new MusicAmbientlight(
     playerPageElem,
     playerElem,
     settings
   );
   window.musicAmbientlight = musicAmbientlight;
-  const settingsMenu = new MusicSettingsMenu(musicAmbientlight, playerBarElem);
+  const settingsMenu = new MusicSettingsMenu(musicAmbientlight, appElem);
 
   // Apply the changes made in the YouTube player settings
   storage.addListener(function musicSettingsListener(changes) {

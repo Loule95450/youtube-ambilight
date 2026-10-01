@@ -57,9 +57,9 @@ export default class MusicSettingsMenu {
   isOpen = false;
   saveTimeouts = {};
 
-  constructor(ambientlight, playerBarElem) {
+  constructor(ambientlight, appElem) {
     this.ambientlight = ambientlight;
-    this.playerBarElem = playerBarElem;
+    this.appElem = appElem;
 
     this.initButton();
     this.initMenu();
@@ -82,22 +82,28 @@ export default class MusicSettingsMenu {
 
     this.insertButton();
 
-    // The buttons in the player bar can be re-rendered by YouTube Music
-    this.playerBarObserver = new MutationObserver(
-      wrapErrorHandler(function onPlayerBarMutation() {
+    // The player bar can be created later, re-rendered or replaced by
+    // YouTube Music depending on the layout and the size of the window
+    this.appObserver = new MutationObserver(
+      wrapErrorHandler(function onAppMutation() {
         if (this.buttonElem.isConnected) return;
         this.insertButton();
       }.bind(this), true)
     );
-    this.playerBarObserver.observe(this.playerBarElem, {
+    this.appObserver.observe(this.appElem, {
       childList: true,
       subtree: true,
     });
   }
 
   insertButton() {
-    const buttonsElem = this.playerBarElem.querySelector(
-      '.right-controls-buttons'
+    // The player bar at the bottom of the window. In small windows a
+    // different player bar (#top-player-bar) is shown in the player page
+    const buttonsElem = this.appElem.querySelector(
+      [
+        'ytmusic-player-bar:not(#top-player-bar) .right-controls-buttons',
+        'ytmusic-player-bar:not(#top-player-bar) .right-controls',
+      ].join(', ')
     );
     if (!buttonsElem) return;
 
@@ -276,7 +282,9 @@ export default class MusicSettingsMenu {
     if (!this.isOpen) return;
 
     const buttonRect = this.buttonElem.getBoundingClientRect();
-    const barRect = this.playerBarElem.getBoundingClientRect();
+    const barRect = (
+      this.buttonElem.closest('ytmusic-player-bar') ?? this.buttonElem
+    ).getBoundingClientRect();
     const menuWidth = this.menuElem.offsetWidth;
     const left = Math.max(
       8,
