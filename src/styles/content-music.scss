@@ -1,0 +1,51 @@
+// Ambient light for the player page of music.youtube.com
+//
+// ytmusic-player-page is a fixed positioned stacking context. A negative
+// z-index places the ambient light above its background color, but below the
+// cover, the video and the queue.
+
+.ytal-music {
+  // Set from the YouTube player settings: spread / 100 and blur / 100
+  --ytal-music-spread: 0.17;
+  --ytal-music-blur: 0.3;
+  --ytal-music-size: 400px;
+
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  contain: strict;
+
+  &--visible {
+    opacity: 1;
+  }
+}
+
+.ytal-music__glow {
+  position: absolute;
+}
+
+// The blur is relative to the size of the cover or video, just like the
+// blur of the YouTube player is relative to the video height
+.ytal-music__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+
+  &--far {
+    opacity: 0.7;
+    transform: scale(calc(1 + var(--ytal-music-spread)));
+    filter: blur(calc(var(--ytal-music-size) * var(--ytal-music-blur) * 0.5));
+  }
+
+  &--near {
+    transform: scale(calc(1 + 0.4 * var(--ytal-music-spread)));
+    filter: blur(calc(var(--ytal-music-size) * var(--ytal-music-blur) * 0.25));
+  }
+}
+
