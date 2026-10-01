@@ -11,6 +11,11 @@ const BUFFER_WIDTH = 64;
 const TRANSITION_FRAMES = 36;
 const TRANSITION_ALPHA = 0.12;
 
+// Many videos contain a thin black line at their edges, which is too thin to
+// be detected as a bar. Video compression also blurs the edges of black bars
+// into the image. So a few extra pixels are clipped to hide those edges.
+const BARS_CLIP_MARGIN = 2;
+
 // The settings of the YouTube player that are also applied on YouTube Music.
 // They are shared via the extension storage, so a change on youtube.com is
 // also applied on music.youtube.com
@@ -325,10 +330,16 @@ export default class MusicAmbientlight {
       // The black bars are clipped off the video, so the ambient light should
       // start at the edges of the remaining image
       const { horizontal, vertical } = this.barsClip;
-      left += (width * vertical) / 100;
-      top += (height * horizontal) / 100;
-      width -= ((width * vertical) / 100) * 2;
-      height -= ((height * horizontal) / 100) * 2;
+      const clipX = this.settings.detectVerticalBarSizeEnabled
+        ? (width * vertical) / 100 + BARS_CLIP_MARGIN
+        : 0;
+      const clipY = this.settings.detectHorizontalBarSizeEnabled
+        ? (height * horizontal) / 100 + BARS_CLIP_MARGIN
+        : 0;
+      left += clipX;
+      top += clipY;
+      width -= clipX * 2;
+      height -= clipY * 2;
     }
     this.updateVideoClip(source.key === 'video' ? source.elem : undefined);
 
@@ -499,10 +510,13 @@ export default class MusicAmbientlight {
     if (!video) return;
 
     const { horizontal, vertical } = this.barsClip;
-    video.style.setProperty(
-      '--ytal-music-video-clip',
-      `inset(${horizontal}% ${vertical}%)`
-    );
+    const clipY = this.settings.detectHorizontalBarSizeEnabled
+      ? `calc(${horizontal}% + ${BARS_CLIP_MARGIN}px)`
+      : '0%';
+    const clipX = this.settings.detectVerticalBarSizeEnabled
+      ? `calc(${vertical}% + ${BARS_CLIP_MARGIN}px)`
+      : '0%';
+    video.style.setProperty('--ytal-music-video-clip', `inset(${clipY} ${clipX})`);
     video.classList.add('ytal-music-video-clip');
     this.clippedVideoElem = video;
   }
