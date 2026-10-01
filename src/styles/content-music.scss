@@ -49,3 +49,143 @@
   }
 }
 
+// Settings button in the player bar, styled like the other buttons in there
+
+.ytal-music-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ytmusic-text-secondary, #909090);
+  cursor: pointer;
+  outline: none;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &--enabled {
+    color: var(--ytmusic-text-primary, #fff);
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+  }
+}
+
+.ytal-music-menu {
+  position: fixed;
+  z-index: 2202; // Above the player bar
+  width: 300px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding: 8px 0;
+  border-radius: 8px;
+  background: #212121;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  scrollbar-width: thin;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.ytal-music-menu__header {
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+
+.ytal-music-menu__title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ytal-music-menu__subtitle {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.ytal-music-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+
+  &--range {
+    flex-wrap: wrap;
+    cursor: default;
+  }
+}
+
+.ytal-music-menu__label {
+  flex-grow: 1;
+}
+
+.ytal-music-menu__value {
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.ytal-music-menu__range {
+  width: 100%;
+  margin: 0;
+  accent-color: #fff;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.ytal-music-menu__switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 14px;
+  margin: 0 3px;
+  border-radius: 7px;
+  background: #717171;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ececec;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    transition: transform 0.15s, background 0.15s;
+  }
+
+  &:checked {
+    background: #4f88ba;
+
+    &::after {
+      background: #3ea6ff;
+      transform: translateX(22px);
+    }
+  }
+}
