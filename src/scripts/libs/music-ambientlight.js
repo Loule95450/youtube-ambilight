@@ -83,7 +83,9 @@ export default class MusicAmbientlight {
       };
     });
 
-    this.playerPageElem.prepend(this.elem);
+    // A full window layer below the navigation bar, guide and player bar, so
+    // that the ambient light can also shine through them
+    document.body.appendChild(this.elem);
   }
 
   initListeners() {
@@ -124,6 +126,17 @@ export default class MusicAmbientlight {
     this.resizeObserver.observe(this.playerElem);
 
     // The main panel scrolls along with the queue in narrow layouts
+    // The player page slides in and out with a transform, which is not
+    // detected by the ResizeObserver
+    this.onPlayerPageTransitionEnd = () => this.scheduleLayoutUpdate();
+    on(
+      this.playerPageElem,
+      'transitionend animationend',
+      this.onPlayerPageTransitionEnd,
+      undefined,
+      true
+    );
+
     this.onScroll = () => this.scheduleLayoutUpdate();
     on(this.playerPageElem, 'scroll', this.onScroll, {
       capture: true,
@@ -149,7 +162,7 @@ export default class MusicAmbientlight {
     // of the video size the ambient light extends past the edges
     this.elem.style.setProperty('--ytal-music-spread', spread / 100);
     this.elem.style.setProperty('--ytal-music-blur', blur2 / 100);
-    this.elem.style.filter = [
+    this.glowElem.style.filter = [
       contrast != 100 ? `contrast(${contrast}%)` : '',
       brightness != 100 ? `brightness(${brightness}%)` : '',
       saturation != 100 ? `saturate(${saturation}%)` : '',
@@ -185,6 +198,7 @@ export default class MusicAmbientlight {
     }
 
     this.enabled = true;
+    this.elem.classList.add('ytal-music--active');
 
     const source = this.getSource();
     if (!source) {
@@ -207,7 +221,7 @@ export default class MusicAmbientlight {
 
   hide() {
     this.enabled = false;
-    this.elem.classList.remove('ytal-music--visible');
+    this.elem.classList.remove('ytal-music--active', 'ytal-music--visible');
     this.cancelScheduledDraw();
     this.cancelScheduledVideoFrame();
   }
@@ -256,7 +270,6 @@ export default class MusicAmbientlight {
     const source = this.getSource();
     if (!source) return;
 
-    const pageRect = this.playerPageElem.getBoundingClientRect();
     const elemRect = source.elem.getBoundingClientRect();
     if (!elemRect.width || !elemRect.height) return;
 
@@ -274,8 +287,8 @@ export default class MusicAmbientlight {
     }
 
     const style = this.glowElem.style;
-    style.left = `${left - pageRect.left}px`;
-    style.top = `${top - pageRect.top}px`;
+    style.left = `${left}px`;
+    style.top = `${top}px`;
     style.width = `${width}px`;
     style.height = `${height}px`;
     this.elem.style.setProperty(
@@ -410,6 +423,11 @@ export default class MusicAmbientlight {
     this.resizeObserver.disconnect();
     off(this.coverContainerElem, 'load', this.onCoverLoad);
     off(this.playerPageElem, 'scroll', this.onScroll);
+    off(
+      this.playerPageElem,
+      'transitionend animationend',
+      this.onPlayerPageTransitionEnd
+    );
     off(this.playerElem, 'loadeddata seeked playing resize', this.onVideoChange);
     off(document, 'visibilitychange', this.onVisibilityChange);
     this.elem.remove();

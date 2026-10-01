@@ -1,8 +1,9 @@
 // Ambient light for the player page of music.youtube.com
 //
-// ytmusic-player-page is a fixed positioned stacking context. A negative
-// z-index places the ambient light above its background color, but below the
-// cover, the video and the queue.
+// The ambient light is a full window layer with a z-index between the page
+// content (z-index: auto) and the player page (z-index: 2). The backgrounds
+// of the player page, navigation bar, guide and player bar are made
+// transparent while it is active, so that the ambient light shines through.
 
 .ytal-music {
   // Set from the YouTube player settings: spread / 100 and blur / 100
@@ -10,22 +11,43 @@
   --ytal-music-blur: 0.3;
   --ytal-music-size: 400px;
 
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 1;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.6s ease;
+  visibility: hidden;
   contain: strict;
 
-  &--visible {
-    opacity: 1;
+  &--active {
+    visibility: visible;
+    background: #030303;
+  }
+}
+
+body:has(> .ytal-music--active) {
+  ytmusic-player-page,
+  #nav-bar-background,
+  #mini-guide-background,
+  tp-yt-app-drawer#guide[persistent] #guide-wrapper,
+  ytmusic-player-bar {
+    background: transparent !important;
+  }
+
+  // Keep the controls in the player bar readable
+  #player-bar-background {
+    background: rgba(3, 3, 3, 0.5) !important;
   }
 }
 
 .ytal-music__glow {
   position: absolute;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+
+  .ytal-music--visible & {
+    opacity: 1;
+  }
 }
 
 // The blur is relative to the size of the cover or video, just like the
